@@ -1,7 +1,7 @@
+# Dependencies
 import numpy as np
-
 import datetime as dt
-from datetime import timedelta, datetime
+
 
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
@@ -54,7 +54,7 @@ def precipitation():
     session = Session(engine)
 
     """Return a list of all precipitation data"""
-    # Query all passengers
+    # Query Precipitation data
     annual_rainfall = session.query(Measurement.date,  Measurement.prcp).order_by(Measurement.date).all()
 
     session.close()
@@ -70,7 +70,7 @@ def stations():
     session = Session(engine)
 
     """Return a list of all stations data"""
-    # Query all passengers
+    # Query a list of all stations
     results = session.query(Station.station).all()
 
     session.close()
@@ -82,19 +82,25 @@ def stations():
 
 @app.route("/api/v1.0/tobs")
 def tobs():
-    # Create our session (link) from Python to the DB
     session = Session(engine)
+    
+    max_date = session.query(func.max(Measurement.date)).all()[0][0]
+    min_date = dt.datetime.strptime(max_date,'%Y-%m-%d') - dt.timedelta(days = 365)
+    Active_Stations = session.query(Station.station ,func.count(Measurement.tobs)).filter(Station.station == Measurement.station).\
+    group_by(Station.station).order_by(func.count(Measurement.tobs).desc()).all()
 
-    """Return a list of all tobs data"""
-    # Query the dates and temperature observations of the most active station for the last year of data.
-    # Return a JSON list of temperature observations (TOBS) for the previous year.
 
-    results_WAHIAWA = session.query(Measurement.date,Measurement.tobs).filter(Measurement.date >= "2016-8-23").\
+    #Query the dates and temperature observations of the most active station for the last year of data.
+    
+    
+    results_WAHIAWA = session.query(Measurement.date,Measurement.tobs).filter(Measurement.date > min_date).\
     filter(Station.station == Active_Stations[0][0]).all()
 
     session.close()
 
-    return jsonify(tobs)
+    # Return a JSON list of temperature observations (TOBS) for the previous year.
+    temp_list = list(np.ravel(results_WAHIAWA))
+    return jsonify(temp_list)
 
 if __name__ == '__main__':
     app.run(debug=True)
